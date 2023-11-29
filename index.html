@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      overflow: hidden;
+      margin: 0;
+      padding: 0;
+    }
+
+    canvas {
+      display: block;
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+  <title>redacted</title>
+</head>
+<body>
+  <script>
+    // Constants
+    const NOISE_INCREMENT = 0.1;
+    const MAX_ALPHA = 100;
+    const FADE_SPEED = 0.01;
+    let speedMultiplier = 1; // Initial speed multiplier
+    const SPEED_CHANGE_RATE = 0.1; // Rate of speed change
+
+    // Variables
+    let cols, rows;
+    let scl = 20;
+    let w, h;
+    let flowfield = [];
+    let dots = [];
+    let terrain = [];
+    let baseColor;
+    let time = 0; // Time variable for animation
+
+    function setup() {
+      // Set up canvas
+      colorMode(RGB);
+      w = windowWidth;
+      h = windowHeight;
+      createCanvas(w, h);
+      cols = floor(w / scl) + 1;  
+      rows = floor(h / scl) + 1;
+
+      // Set up base color for terrain
+      baseColor = getRandomBaseColor();
+
+      // Generate flow field, terrain, and dots
+      generateFlowField();
+      generateTerrain();
+      generateDots();
+    }
+
+    function draw() {
+      // Draw background, terrain, and update/display dots
+      background(0);
+      drawTerrain();
+      updateAndDisplayDots();
+
+      // Update time for animation based on speedMultiplier
+      time += 0.0165 * speedMultiplier;
+      
+      // Regenerate terrain for animation
+      generateTerrain();
+    }
+
+    function drawTerrain() {
+      // Draw terrain using TRIANGLE_STRIP
+      noStroke();
+      for (let y = 0; y < rows; y++) {
+        beginShape(TRIANGLE_STRIP);
+        for (let x = 0; x < cols; x++) {
+          let currentHeight = terrain[x][y];
+          let nextHeight = (y + 1 < rows) ? terrain[x][y + 1] : currentHeight;
+
+          let currentColor = calculateColor(currentHeight);
+          let nextColor = calculateColor(nextHeight);
+
+          fill(currentColor);
+          vertex(x * scl, y * scl, currentHeight);
+
+          fill(nextColor);
+          vertex(x * scl, (y + 1) * scl, nextHeight);
+        }
+        endShape();
+      }
+    }
+
+    function updateAndDisplayDots() {
+      // Update and display each connected curved dot
+      for (let i = 0; i < dots.length; i++) {
+        dots[i].update();
+        dots[i].display();
+      }
+    }
+
+    function calculateColor(height) {
+      // Map height to color gradient with a higher overall range
+      let t = map(height, 10, 150, 0, 1);
+      return lerpColor(color(0, 0, 0), baseColor, t);
+    }
+
+    function generateDots() {
+      // Generate connected curved dots for each grid point
+      for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+          let index1 = x + y * cols;
+          let index2 = (x + 1) + y * cols;
+          let index3 = x + (y + 1) * cols;
+
+          let center1 = createVector((x + 0.5) * scl, (y + 0.5) * scl, terrain[x][y]);
+          let center2 = createVector((x + 1.5) * scl, (y + 0.5) * scl, (x + 1 < cols) ? terrain[x + 1][y] : terrain[x][y]);
+          let center3 = createVector((x + 0.5) * scl, (y + 1.5) * scl, (y + 1 < rows) ? terrain[x][y + 1] : terrain[x][y]);
+
+          dots.push(new ConnectedCurvedDot(flowfield[index1], center1, 0.2, 0.01, random(TWO_PI)));
+          dots.push(new ConnectedCurvedDot(flowfield[index1], center2, 0.2, 0.01, random(TWO_PI)));
+
+          if (x + 1 < cols) {
+            dots.push(new ConnectedCurvedDot(flowfield[index1], center3, 0.2, 0.01, random(TWO_PI)));
+          }
+        }
+      }
+    }
+
+    function generateTerrain() {
+      // Generate terrain using Perlin noise with increased frequency and noise scale
+      for (let x = 0; x < cols; x++) {
+        terrain[x] = [];
+        for (let y = 0; y < rows; y++) {
+          // Adjust the noise scale and frequency to control the terrain appearance
+
+          // Increase the frequency of the noise function for smoother transitions between points
+          // Smaller multiplier values (0.1) introduce more variations and details
+          let noiseScale = 0.1;
+
+          // Adjust the noise scale and frequency in both x and y directions
+          // Smaller multipliers (0.05) make changes in terrain more gradual
+          terrain[x][y] = map(noise(x * noiseScale, y * noiseScale, time), 0, 1, 55, 155) + sin(x * 0.1) * 20 + cos(y * 0.1) * 20;
+        }
+      }
+    }
+
+    function getRandomBaseColor() {
+      // Get a random base color from an extended set with adjustments
+      let baseColors = [
+        color(225, 90, 90),     // Darker red
+        color(0, 180, 0),       // Brighter green
+        color(140, 180, 255),   // Lighter blue
+        color(170, 120, 200),   // Lighter and less saturated purple (lightened and desaturated pink)
+        color(255, 200, 200),   // Lighter pink
+        color(255, 215, 0),     // Gold (unchanged)
+        color(255, 165, 0),     // Orange (unchanged)
+        color(169, 169, 169),   // Gray (unchanged)
+        color(255, 150, 0),     // Orange
+        color(0, 150, 255),     // Bright blue
+        color(255, 100, 150),   // Pink
+        color(255, 50, 120),    // Darker pink
+        color(100, 200, 100)    // Light green
+      ];
+
+      return baseColors[floor(random(baseColors.length))];
+    }
+
+
+    class ConnectedCurvedDot {
+      // Class for connected curved dots
+      constructor(v, position, noiseScale, speed, angleOffset) {
+        this.position = position.copy();
+        this.noiseScale = noiseScale;
+        this.speed = speed;
+        this.angleOffset = angleOffset;
+        this.time = 0;
+        this.v = v;
+        this.len = 10;
+        this.alpha = MAX_ALPHA;
+        this.fadeAlpha = 0;
+      }
+
+      update() {
+        // Update dot parameters
+        this.time += this.speed * speedMultiplier;
+        this.fadeAlpha += FADE_SPEED * speedMultiplier;
+        this.fadeAlpha = constrain(this.fadeAlpha, 0, MAX_ALPHA);
+      }
+
+      display() {
+        // Display dot as a connected curved line
+        push();
+        translate(this.position.x, this.position.y, this.position.z);
+        stroke(255, this.alpha);
+        strokeWeight(2);
+        fill(100, 200, 255, this.alpha);
+
+        let cx1 = this.v.x * this.len + (noise(this.position.x * this.noiseScale, this.position.y * this.noiseScale, this.time + this.angleOffset) - 0.5) * 40;
+        let cy1 = this.v.y * this.len + (noise(this.position.x * this.noiseScale + 5, this.position.y * this.noiseScale + 5, this.time + this.angleOffset) - 0.5) * 40;
+        let cx2 = this.v.x * this.len * -1 + (noise(this.position.x * this.noiseScale + 10, this.position.y * this.noiseScale + 10, this.time + this.angleOffset) - 0.5) * 40;
+        let cy2 = this.v.y * this.len * -1 + (noise(this.position.x * this.noiseScale + 15, this.position.y * this.noiseScale + 15, this.time + this.angleOffset) - 0.5) * 40;
+
+        bezier(0, 0, cx1, cy1, cx2, cy2, this.len, 0);
+
+        this.alpha = MAX_ALPHA - this.fadeAlpha;
+        pop();
+      }
+    }
+
+    function generateFlowField() {
+      // Generate flow field using Perlin noise
+      let yoff = 0;
+      for (let y = 0; y < rows; y++) {
+        let xoff = 0;
+        for (let x = 0; x < cols; x++) {
+          let index = x + y * cols;
+          let angle = noise(xoff, yoff) * TWO_PI * 2;
+          let v = p5.Vector.fromAngle(angle);
+          flowfield[index] = v;
+          xoff += NOISE_INCREMENT;
+        }
+        yoff += NOISE_INCREMENT;
+      }
+    }
+
+    function windowResized() {
+      // Adjust canvas size when the window is resized
+      resizeCanvas(windowWidth, windowHeight);
+      w = windowWidth;
+      h = windowHeight;
+      // Recalculate any values dependent on canvas size here.
+    }
+
+    // Add these lines to handle key presses
+    function keyPressed() {
+      if (key.toLowerCase() === 'j') {
+        speedMultiplier = min(2, speedMultiplier + SPEED_CHANGE_RATE); // Increase speed gradually, capped at 2x
+      } else if (key.toLowerCase() === 'k') {
+        speedMultiplier = max(0.5, speedMultiplier - SPEED_CHANGE_RATE); // Decrease speed gradually, capped at 0.5x
+      }
+    }
+  </script>
+</body>
+</html>
