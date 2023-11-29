@@ -1,3 +1,4 @@
+<!-- index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -15,16 +16,19 @@
     }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
-  <title>redacted</title>
+  <title>Generative Art</title>
 </head>
 <body>
   <script>
     // Constants
     const NOISE_INCREMENT = 0.1;
     const MAX_ALPHA = 100;
-    const FADE_SPEED = 0.01;
-    let speedMultiplier = 1; // Initial speed multiplier
-    const SPEED_CHANGE_RATE = 0.1; // Rate of speed change
+    const FADE_SPEED = 0.015;
+    let speedMultiplier = 1;
+    const SPEED_CHANGE_RATE = 0.1;
+    let rainbowMode = false;
+    let lastPaletteChangeTime = 0;
+    const RAINBOW_MODE_INTERVAL = 7500; // 7.5 seconds in milliseconds
 
     // Variables
     let cols, rows;
@@ -33,11 +37,27 @@
     let flowfield = [];
     let dots = [];
     let terrain = [];
-    let baseColor;
-    let time = 0; // Time variable for animation
+    let baseColors = [
+      [225, 90, 90],
+      [0, 180, 0],
+      [140, 180, 255],
+      [170, 120, 200],
+      [255, 200, 200],
+      [255, 215, 0],
+      [255, 165, 0],
+      [169, 169, 169],
+      [255, 150, 0],
+      [0, 150, 255],
+      [255, 100, 150],
+      [255, 50, 120],
+      [100, 200, 100]
+    ];
+    let currentPaletteIndex = 0;
+    let currentPalette = [];
+    let nextPalette = [];
+    let time = 0;
 
     function setup() {
-      // Set up canvas
       colorMode(RGB);
       w = windowWidth;
       h = windowHeight;
@@ -45,30 +65,41 @@
       cols = floor(w / scl) + 1;  
       rows = floor(h / scl) + 1;
 
-      // Set up base color for terrain
-      baseColor = getRandomBaseColor();
+      currentPalette = baseColors[currentPaletteIndex];
+      nextPalette = baseColors[(currentPaletteIndex + 1) % baseColors.length];
 
-      // Generate flow field, terrain, and dots
       generateFlowField();
       generateTerrain();
       generateDots();
     }
 
     function draw() {
-      // Draw background, terrain, and update/display dots
       background(0);
       drawTerrain();
       updateAndDisplayDots();
 
-      // Update time for animation based on speedMultiplier
       time += 0.0165 * speedMultiplier;
-      
-      // Regenerate terrain for animation
+
+      if (rainbowMode) {
+        // Check if it's time to change the palette in rainbow mode
+        if (millis() - lastPaletteChangeTime > RAINBOW_MODE_INTERVAL) {
+          currentPaletteIndex = (currentPaletteIndex + 1) % baseColors.length;
+          nextPalette = baseColors[(currentPaletteIndex + 1) % baseColors.length];
+          lastPaletteChangeTime = millis();
+        }
+      } else {
+        // Check if 'n' key is pressed to change the palette
+        if (keyIsPressed && key === 'n') {
+          currentPaletteIndex = (currentPaletteIndex + 1) % baseColors.length;
+          nextPalette = baseColors[(currentPaletteIndex + 1) % baseColors.length];
+        }
+      }
+
+      updatePalette();
       generateTerrain();
     }
 
     function drawTerrain() {
-      // Draw terrain using TRIANGLE_STRIP
       noStroke();
       for (let y = 0; y < rows; y++) {
         beginShape(TRIANGLE_STRIP);
@@ -79,10 +110,8 @@
           let currentColor = calculateColor(currentHeight);
           let nextColor = calculateColor(nextHeight);
 
-          fill(currentColor);
+          fill(lerpColor(currentColor, nextColor, 0.5));
           vertex(x * scl, y * scl, currentHeight);
-
-          fill(nextColor);
           vertex(x * scl, (y + 1) * scl, nextHeight);
         }
         endShape();
@@ -90,7 +119,6 @@
     }
 
     function updateAndDisplayDots() {
-      // Update and display each connected curved dot
       for (let i = 0; i < dots.length; i++) {
         dots[i].update();
         dots[i].display();
@@ -98,13 +126,12 @@
     }
 
     function calculateColor(height) {
-      // Map height to color gradient with a higher overall range
       let t = map(height, 10, 150, 0, 1);
-      return lerpColor(color(0, 0, 0), baseColor, t);
+      return lerpColor(color(0, 0, 0), color(...currentPalette), t);
     }
 
     function generateDots() {
-      // Generate connected curved dots for each grid point
+      dots = []; // Clear the array before regenerating
       for (let y = 0; y < rows; y++) {
         for (let x = 0; x < cols; x++) {
           let index1 = x + y * cols;
@@ -126,47 +153,22 @@
     }
 
     function generateTerrain() {
-      // Generate terrain using Perlin noise with increased frequency and noise scale
       for (let x = 0; x < cols; x++) {
         terrain[x] = [];
         for (let y = 0; y < rows; y++) {
-          // Adjust the noise scale and frequency to control the terrain appearance
-
-          // Increase the frequency of the noise function for smoother transitions between points
-          // Smaller multiplier values (0.1) introduce more variations and details
           let noiseScale = 0.1;
-
-          // Adjust the noise scale and frequency in both x and y directions
-          // Smaller multipliers (0.05) make changes in terrain more gradual
           terrain[x][y] = map(noise(x * noiseScale, y * noiseScale, time), 0, 1, 55, 155) + sin(x * 0.1) * 20 + cos(y * 0.1) * 20;
         }
       }
     }
 
-    function getRandomBaseColor() {
-      // Get a random base color from an extended set with adjustments
-      let baseColors = [
-        color(225, 90, 90),     // Darker red
-        color(0, 180, 0),       // Brighter green
-        color(140, 180, 255),   // Lighter blue
-        color(170, 120, 200),   // Lighter and less saturated purple (lightened and desaturated pink)
-        color(255, 200, 200),   // Lighter pink
-        color(255, 215, 0),     // Gold (unchanged)
-        color(255, 165, 0),     // Orange (unchanged)
-        color(169, 169, 169),   // Gray (unchanged)
-        color(255, 150, 0),     // Orange
-        color(0, 150, 255),     // Bright blue
-        color(255, 100, 150),   // Pink
-        color(255, 50, 120),    // Darker pink
-        color(100, 200, 100)    // Light green
-      ];
-
-      return baseColors[floor(random(baseColors.length))];
+    function updatePalette() {
+      for (let i = 0; i < currentPalette.length; i++) {
+        currentPalette[i] = lerp(currentPalette[i], nextPalette[i], FADE_SPEED * speedMultiplier);
+      }
     }
 
-
     class ConnectedCurvedDot {
-      // Class for connected curved dots
       constructor(v, position, noiseScale, speed, angleOffset) {
         this.position = position.copy();
         this.noiseScale = noiseScale;
@@ -180,14 +182,12 @@
       }
 
       update() {
-        // Update dot parameters
         this.time += this.speed * speedMultiplier;
         this.fadeAlpha += FADE_SPEED * speedMultiplier;
         this.fadeAlpha = constrain(this.fadeAlpha, 0, MAX_ALPHA);
       }
 
       display() {
-        // Display dot as a connected curved line
         push();
         translate(this.position.x, this.position.y, this.position.z);
         stroke(255, this.alpha);
@@ -207,7 +207,6 @@
     }
 
     function generateFlowField() {
-      // Generate flow field using Perlin noise
       let yoff = 0;
       for (let y = 0; y < rows; y++) {
         let xoff = 0;
@@ -222,21 +221,31 @@
       }
     }
 
-    function windowResized() {
-      // Adjust canvas size when the window is resized
-      resizeCanvas(windowWidth, windowHeight);
-      w = windowWidth;
-      h = windowHeight;
-      // Recalculate any values dependent on canvas size here.
+    function keyPressed() {
+      if (key === 'j') {
+        speedMultiplier = min(2, speedMultiplier + SPEED_CHANGE_RATE);
+      } else if (key === 'k') {
+        speedMultiplier = max(0.5, speedMultiplier - SPEED_CHANGE_RATE);
+      } else if (key === 'n') {
+        currentPaletteIndex = (currentPaletteIndex + 1) % baseColors.length;
+        nextPalette = baseColors[(currentPaletteIndex + 1) % baseColors.length];
+      } else if (key === 'm') {
+        rainbowMode = !rainbowMode; // Toggle rainbow mode
+        lastPaletteChangeTime = millis();
+      }
     }
 
-    // Add these lines to handle key presses
-    function keyPressed() {
-      if (key.toLowerCase() === 'j') {
-        speedMultiplier = min(2, speedMultiplier + SPEED_CHANGE_RATE); // Increase speed gradually, capped at 2x
-      } else if (key.toLowerCase() === 'k') {
-        speedMultiplier = max(0.5, speedMultiplier - SPEED_CHANGE_RATE); // Decrease speed gradually, capped at 0.5x
-      }
+    function windowResized() {
+      w = windowWidth;
+      h = windowHeight;
+      resizeCanvas(w, h);
+
+      cols = floor(w / scl) + 1;
+      rows = floor(h / scl) + 1;
+
+      generateFlowField();
+      generateDots();
+      generateTerrain();
     }
   </script>
 </body>
