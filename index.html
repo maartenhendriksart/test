@@ -2,8 +2,11 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <!-- Meta tags -->
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Styling for the page -->
   <style>
     body {
       overflow: hidden;
@@ -15,29 +18,34 @@
       display: block;
     }
   </style>
+
+  <!-- p5.js library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+
+  <!-- Page title -->
   <title>Generative Art</title>
 </head>
 <body>
+  <!-- p5.js sketch -->
   <script>
     // Constants
-    const NOISE_INCREMENT = 0.1;
-    const MAX_ALPHA = 100;
-    const FADE_SPEED = 0.015;
-    let speedMultiplier = 1;
-    const SPEED_CHANGE_RATE = 0.1;
-    let rainbowMode = false;
-    let lastPaletteChangeTime = 0;
-    const RAINBOW_MODE_INTERVAL = 7500; // 7.5 seconds in milliseconds
+    const NOISE_INCREMENT = 0.1;             // Increment for Perlin noise
+    const MAX_ALPHA = 100;                   // Maximum alpha value for dots
+    const FADE_SPEED = 0.015;                // Speed at which colors fade
+    let speedMultiplier = 1;                 // Speed control for the animation
+    const SPEED_CHANGE_RATE = 0.1;           // Rate at which speed changes
+    let rainbowMode = false;                 // Toggle for rainbow mode
+    let lastPaletteChangeTime = 0;           // Last time the palette changed
+    const RAINBOW_MODE_INTERVAL = 7500;      // Time interval for rainbow mode (7.5 seconds)
 
     // Variables
-    let cols, rows;
-    let scl = 20;
-    let w, h;
-    let flowfield = [];
-    let dots = [];
-    let terrain = [];
-    let baseColors = [
+    let cols, rows;                          // Number of columns and rows in the grid
+    let scl = 20;                            // Scale for the grid
+    let w, h;                                // Width and height of the canvas
+    let flowfield = [];                      // Flow field for dot movement
+    let dots = [];                           // Array to store dots
+    let terrain = [];                        // 2D array to store terrain heights
+    let baseColors = [                       // Base colors for the palette
       [225, 90, 90],
       [0, 180, 0],
       [140, 180, 255],
@@ -52,11 +60,12 @@
       [255, 50, 120],
       [100, 200, 100]
     ];
-    let currentPaletteIndex = 0;
-    let currentPalette = [];
-    let nextPalette = [];
-    let time = 0;
+    let currentPaletteIndex = 0;             // Index of the current color palette
+    let currentPalette = [];                 // Current color palette
+    let nextPalette = [];                    // Next color palette for smooth transitions
+    let time = 0;                            // Time variable for Perlin noise animation
 
+    // Setup function runs once at the beginning
     function setup() {
       colorMode(RGB);
       w = windowWidth;
@@ -73,6 +82,7 @@
       generateDots();
     }
 
+    // Draw function runs continuously to update the canvas
     function draw() {
       background(0);
       drawTerrain();
@@ -99,6 +109,7 @@
       generateTerrain();
     }
 
+    // Function to draw the terrain using TRIANGLE_STRIP
     function drawTerrain() {
       noStroke();
       for (let y = 0; y < rows; y++) {
@@ -118,6 +129,7 @@
       }
     }
 
+    // Function to update and display the dots
     function updateAndDisplayDots() {
       for (let i = 0; i < dots.length; i++) {
         dots[i].update();
@@ -125,33 +137,49 @@
       }
     }
 
+    // Function to calculate color based on height
     function calculateColor(height) {
       let t = map(height, 10, 150, 0, 1);
       return lerpColor(color(0, 0, 0), color(...currentPalette), t);
     }
 
+    // Function to generate dots on the terrain
     function generateDots() {
       dots = []; // Clear the array before regenerating
       for (let y = 0; y < rows; y++) {
         for (let x = 0; x < cols; x++) {
-          let index1 = x + y * cols;
-          let index2 = (x + 1) + y * cols;
-          let index3 = x + (y + 1) * cols;
+          // Introduce a probability for a dot to be generated
+          if (random(1) > .55) {
+            let index1 = x + y * cols;
+            let index2 = (x + 1) + y * cols;
+            let index3 = x + (y + 1) * cols;
 
-          let center1 = createVector((x + 0.5) * scl, (y + 0.5) * scl, terrain[x][y]);
-          let center2 = createVector((x + 1.5) * scl, (y + 0.5) * scl, (x + 1 < cols) ? terrain[x + 1][y] : terrain[x][y]);
-          let center3 = createVector((x + 0.5) * scl, (y + 1.5) * scl, (y + 1 < rows) ? terrain[x][y + 1] : terrain[x][y]);
+            let center1 = createVector((x + 0.5) * scl, (y + 0.5) * scl, terrain[x][y]);
+            let center2 = createVector((x + 1.5) * scl, (y + 0.5) * scl, (x + 1 < cols) ? terrain[x + 1][y] : terrain[x][y]);
+            let center3 = createVector((x + 0.5) * scl, (y + 1.5) * scl, (y + 1 < rows) ? terrain[x][y + 1] : terrain[x][y]);
 
-          dots.push(new ConnectedCurvedDot(flowfield[index1], center1, 0.2, 0.01, random(TWO_PI)));
-          dots.push(new ConnectedCurvedDot(flowfield[index1], center2, 0.2, 0.01, random(TWO_PI)));
+            dots.push(new ConnectedCurvedDot(flowfield[index1], center1, 0.2, 0.01, random(TWO_PI)));
+            dots.push(new ConnectedCurvedDot(flowfield[index1], center2, 0.2, 0.01, random(TWO_PI)));
 
-          if (x + 1 < cols) {
-            dots.push(new ConnectedCurvedDot(flowfield[index1], center3, 0.2, 0.01, random(TWO_PI)));
+            if (x + 1 < cols) {
+              dots.push(new ConnectedCurvedDot(flowfield[index1], center3, 0.2, 0.01, random(TWO_PI)));
+            }
           }
         }
       }
+
+      // Update the palette when rainbow mode is enabled
+      if (rainbowMode) {
+        if (millis() - lastPaletteChangeTime > RAINBOW_MODE_INTERVAL) {
+          currentPaletteIndex = (currentPaletteIndex + 1) % baseColors.length;
+          nextPalette = baseColors[(currentPaletteIndex + 1) % baseColors.length];
+          lastPaletteChangeTime = millis();
+        }
+        updatePalette();
+      }
     }
 
+    // Function to generate terrain using Perlin noise
     function generateTerrain() {
       for (let x = 0; x < cols; x++) {
         terrain[x] = [];
@@ -162,50 +190,52 @@
       }
     }
 
+    // Function to update the palette colors gradually
     function updatePalette() {
       for (let i = 0; i < currentPalette.length; i++) {
         currentPalette[i] = lerp(currentPalette[i], nextPalette[i], FADE_SPEED * speedMultiplier);
       }
     }
 
+    // Class for connected curved dots
     class ConnectedCurvedDot {
+      // Constructor for the dot class
+      // Includes properties such as position, noise scale, speed, etc.
+      // Also includes update and display methods for animation
       constructor(v, position, noiseScale, speed, angleOffset) {
-        this.position = position.copy();
-        this.noiseScale = noiseScale;
-        this.speed = speed;
-        this.angleOffset = angleOffset;
-        this.time = 0;
-        this.v = v;
-        this.len = 10;
-        this.alpha = MAX_ALPHA;
-        this.fadeAlpha = 0;
-      }
+    this.position = position.copy();
+    this.noiseScale = noiseScale;
+    this.speed = speed;
+    this.angleOffset = angleOffset;
+    this.time = 0;
+    this.v = v;
+    this.len = 10;
+    this.alpha = MAX_ALPHA;
+  }
 
-      update() {
-        this.time += this.speed * speedMultiplier;
-        this.fadeAlpha += FADE_SPEED * speedMultiplier;
-        this.fadeAlpha = constrain(this.fadeAlpha, 0, MAX_ALPHA);
-      }
+  update() {
+    this.time += this.speed * speedMultiplier;
+  }
 
-      display() {
-        push();
-        translate(this.position.x, this.position.y, this.position.z);
-        stroke(255, this.alpha);
-        strokeWeight(2);
-        fill(100, 200, 255, this.alpha);
+  display() {
+    push();
+    translate(this.position.x, this.position.y, this.position.z);
+    stroke(255, this.alpha);
+    strokeWeight(2);
+    fill(100, 200, 255, this.alpha);
 
-        let cx1 = this.v.x * this.len + (noise(this.position.x * this.noiseScale, this.position.y * this.noiseScale, this.time + this.angleOffset) - 0.5) * 40;
-        let cy1 = this.v.y * this.len + (noise(this.position.x * this.noiseScale + 5, this.position.y * this.noiseScale + 5, this.time + this.angleOffset) - 0.5) * 40;
-        let cx2 = this.v.x * this.len * -1 + (noise(this.position.x * this.noiseScale + 10, this.position.y * this.noiseScale + 10, this.time + this.angleOffset) - 0.5) * 40;
-        let cy2 = this.v.y * this.len * -1 + (noise(this.position.x * this.noiseScale + 15, this.position.y * this.noiseScale + 15, this.time + this.angleOffset) - 0.5) * 40;
+    let cx1 = this.v.x * this.len + (noise(this.position.x * this.noiseScale, this.position.y * this.noiseScale, this.time + this.angleOffset) - 0.5) * 40;
+    let cy1 = this.v.y * this.len + (noise(this.position.x * this.noiseScale + 5, this.position.y * this.noiseScale + 5, this.time + this.angleOffset) - 0.5) * 40;
+    let cx2 = this.v.x * this.len * -1 + (noise(this.position.x * this.noiseScale + 10, this.position.y * this.noiseScale + 10, this.time + this.angleOffset) - 0.5) * 40;
+    let cy2 = this.v.y * this.len * -1 + (noise(this.position.x * this.noiseScale + 15, this.position.y * this.noiseScale + 15, this.time + this.angleOffset) - 0.5) * 40;
 
-        bezier(0, 0, cx1, cy1, cx2, cy2, this.len, 0);
+    bezier(0, 0, cx1, cy1, cx2, cy2, this.len, 0);
 
-        this.alpha = MAX_ALPHA - this.fadeAlpha;
-        pop();
-      }
-    }
+    pop();
+  }
+}
 
+    // Function to generate the flow field using Perlin noise
     function generateFlowField() {
       let yoff = 0;
       for (let y = 0; y < rows; y++) {
@@ -221,6 +251,7 @@
       }
     }
 
+    // Function triggered when a key is pressed
     function keyPressed() {
       if (key === 'j') {
         speedMultiplier = min(2, speedMultiplier + SPEED_CHANGE_RATE);
@@ -235,6 +266,7 @@
       }
     }
 
+    // Function triggered when the window is resized
     function windowResized() {
       w = windowWidth;
       h = windowHeight;
