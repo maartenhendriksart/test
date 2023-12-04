@@ -2,7 +2,7 @@
   "name": "RUNE 001",
   "description": "runerunerune",
   "image": "https://maartenhendriksart.github.io/test/",
-  "p5js_script": "https://maartenhendriksart.github.io/test/",
+  "external_url": "https://maartenhendriksart.github.io/test/",
   "traits": {
     "European Fine Art": True
   }
