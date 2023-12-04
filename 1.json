@@ -2,7 +2,7 @@
   "name": "RUNE 001",
   "description": "Description of my NFT",
   "image": "https://raw.githubusercontent.com/yourusername/yourrepo/main/token/1.png",
-  "p5js_script": https://raw.githubusercontent.com/maartenhendriksart/test/main/index.html",
+  "p5js_script": "https://raw.githubusercontent.com/maartenhendriksart/test/main/index.html",
   "traits": {
     "European Fine Art": True
   }
